@@ -1,7 +1,7 @@
 {
   "name": "job",
   "version": "1.0.0",
-  "description": "Redis-based job scheduler, worker, and metrics",
+  "description": "Redis-based job scheduler and worker library",
   "main": "src/index.ts",
   "type": "module",
   "scripts": {
