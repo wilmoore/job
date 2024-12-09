@@ -1,15 +1,7 @@
-# jobs-system
-
-To install dependencies:
+# job
+>⪼ Made with &#x1F49C; by [Polyglot](https://realpolyglot.com).
 
 ```bash
 bun install
+bun start
 ```
-
-To run:
-
-```bash
-bun run index.ts
-```
-
-This project was created using `bun init` in bun v1.1.36. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.
