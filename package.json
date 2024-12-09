@@ -1,0 +1,30 @@
+{
+  "name": "job",
+  "version": "1.0.0",
+  "description": "Redis-based job scheduler, worker, and metrics",
+  "main": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "start:scheduler": "bun run src/scheduler.ts",
+    "start:worker": "bun run src/worker.ts",
+    "add:schedule": "export $(grep -v '^#' .env | xargs) && SCHEDULE_ID=$1 && PLAN=$2 && CONTENT=$(echo \\\"{\\\\\\\"token\\\\\\\":\\\\\\\"$GIST_API_TOKEN\\\\\\\"}\\\" | jq -c) && NOW=$(date +%s000) && redis-cli HSET gistwiz:job:schedule:$SCHEDULE_ID plan $PLAN content \\\"$CONTENT\\\" recurring true last_run 0 created $NOW updated $NOW",
+    "view:metrics": "redis-cli HGETALL gistwiz:job:metrics",
+    "view:queue": "redis-cli LRANGE gistwiz:job:queue 0 -1",
+    "clear:metrics": "redis-cli HSET gistwiz:job:metrics pending_jobs 0 running_jobs 0 successful_jobs 0 failed_jobs 0 total_jobs 0",
+    "reset:queue": "redis-cli DEL gistwiz:job:queue",
+    "reset:metrics": "bun run src/metrics.ts resetMetrics",
+    "reset:all": "redis-cli FLUSHALL",
+    "start": "bun stop && bun reset:all && bun start:scheduler & bun start:worker",
+    "stop": "pkill bun",
+    "start:grafana": "grafana server --homepath=/opt/homebrew/share/grafana &"
+  },
+  "dependencies": {
+    "ioredis": "^5.3.2",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.4.8"
+  },
+  "author": "Wil Moore III",
+  "license": "MIT"
+}
