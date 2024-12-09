@@ -1,5 +1,6 @@
 import Redis from 'ioredis'
 import { v4 as uuidv4 } from 'uuid'
+import ms from 'ms'
 
 const redis = new Redis()
 
@@ -35,11 +36,11 @@ async function ensureIndex() {
 
 async function resetMetrics() {
   const defaultMetrics = {
-    pending_jobs: 0,
-    running_jobs: 0,
-    successful_jobs: 0,
-    failed_jobs: 0,
-    total_jobs: 0,
+    pending: 0,
+    running: 0,
+    success: 0,
+    failure: 0,
+    counter: 0,
   }
 
   await redis.hset('gistwiz:job:metrics', defaultMetrics)
@@ -50,37 +51,37 @@ async function incrementMetric(metric: string, increment: number) {
   await redis.hincrby('gistwiz:job:metrics', metric, increment)
 }
 
-async function addDefaultSchedule() {
-  const scheduleKey = 'gistwiz:job:schedule:wilmoore'
-  const exists = await redis.exists(scheduleKey)
+async function addSchedules() {
+  const scheduleId = 'gistwiz:scheduled:wilmoore'
+  const exists = await redis.exists(scheduleId)
 
   if (exists) {
-    console.log('Default schedule for user "wilmoore" already exists.')
+    console.log('schedule "wilmoore" already exists.')
     return
   }
 
   const now = Date.now()
-  const defaultSchedule = {
-    plan: '10s',
-    content: JSON.stringify({ token: 'ghp_default_token' }),
+  const schedule = {
+    content: JSON.stringify({ token: 'ghp_demo_token' }),
+    interval: '10s',
     recurring: true,
     last_run: 0,
     created: now,
     updated: now,
   }
 
-  await redis.hset(scheduleKey, defaultSchedule)
+  await redis.hset(scheduleId, schedule)
   console.log('Default schedule for user "wilmoore" added.')
 }
 
 async function scheduleJobs() {
-  const schedules = await redis.keys('gistwiz:job:schedule:*')
+  const schedules = await redis.keys('gistwiz:scheduled:*')
 
-  for (const scheduleKey of schedules) {
-    const schedule = await redis.hgetall(scheduleKey)
+  for (const scheduleId of schedules) {
+    const schedule = await redis.hgetall(scheduleId)
     const now = Date.now()
 
-    if (schedule.recurring === 'true' && now - parseInt(schedule.last_run) >= parseInterval(schedule.plan)) {
+    if (schedule.recurring === 'true' && now - parseInt(schedule.last_run) >= ms(schedule.interval)) {
       const jobId = `${now}-${uuidv4().slice(0, 10)}`
       const jobKey = `gistwiz:job:${jobId}`
 
@@ -91,30 +92,23 @@ async function scheduleJobs() {
         status: 'pending',
       })
 
-      await redis.lpush('gistwiz:job:queue', jobId)
+      await redis.lpush('gistwiz:job:gists', jobId)
 
       // Update metrics for new jobs
-      await incrementMetric('pending_jobs', 1)
-      await incrementMetric('total_jobs', 1)
+      await incrementMetric('pending', 1)
+      await incrementMetric('counter', 1)
 
-      await redis.hset(scheduleKey, { last_run: now })
-      console.log(`Scheduled job ${jobId} for schedule ${scheduleKey}`)
+      await redis.hset(scheduleId, { last_run: now })
+      console.log(`Scheduled job ${jobId} for schedule ${scheduleId}`)
     }
   }
-}
-
-function parseInterval(plan: string): number {
-  const units = { s: 1000, m: 60000, h: 3600000 }
-  const unit = plan.slice(-1)
-  const value = parseInt(plan.slice(0, -1))
-  return value * (units[unit] || 1000)
 }
 
 async function main() {
   console.log('Scheduler started')
   await resetMetrics() // Reset metrics on startup
   await ensureIndex()
-  await addDefaultSchedule()
+  await addSchedules()
 
   setInterval(scheduleJobs, 5000) // Check every 5 seconds
 }

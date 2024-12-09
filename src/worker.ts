@@ -10,7 +10,7 @@ async function processJobs() {
   console.log('Worker started')
 
   while (true) {
-    const jobId = await redis.rpop('gistwiz:job:queue')
+    const jobId = await redis.rpop('gistwiz:job:gists')
 
     if (!jobId) {
       console.log('No jobs found. Worker idle.')
@@ -23,8 +23,8 @@ async function processJobs() {
 
     if (!jobData.content) {
       console.error(`Job ${jobId} not found or corrupted. Marking as failed.`)
-      await redis.hset(jobKey, { status: 'failed', updated: Date.now() })
-      await incrementMetric('failed_jobs', 1)
+      await redis.hset(jobKey, { status: 'failure', updated: Date.now() })
+      await incrementMetric('failure', 1)
       continue
     }
 
@@ -34,25 +34,25 @@ async function processJobs() {
       console.log(`Processing job ${jobId} with content:`, jobContent)
 
       // Update metrics for job processing
-      await incrementMetric('pending_jobs', -1)
-      await incrementMetric('running_jobs', 1)
+      await incrementMetric('pending', -1)
+      await incrementMetric('running', 1)
 
       // Simulate work (replace this with actual logic)
       await new Promise(resolve => setTimeout(resolve, 1000))
 
       // Mark job as success
       await redis.hset(jobKey, { status: 'success', updated: Date.now() })
-      await incrementMetric('running_jobs', -1)
-      await incrementMetric('successful_jobs', 1)
+      await incrementMetric('running', -1)
+      await incrementMetric('success', 1)
 
       console.log(`Job ${jobId} completed successfully`)
     } catch (error) {
       console.error(`Job ${jobId} failed`, error)
 
       // Mark job as failed
-      await redis.hset(jobKey, { status: 'failed', updated: Date.now() })
-      await incrementMetric('running_jobs', -1)
-      await incrementMetric('failed_jobs', 1)
+      await redis.hset(jobKey, { status: 'failure', updated: Date.now() })
+      await incrementMetric('running', -1)
+      await incrementMetric('failure', 1)
     }
   }
 }
